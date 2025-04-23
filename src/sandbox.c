@@ -4,15 +4,15 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 
-pid_t sandbox_create(const struct sandbox_cfg *cfg) {
+pid_t sandbox_create(const struct sandbox_config *cfg) {
     /*fork, unshare, chroot, drop privs, exe
      */
 }
-static void child_setup(const struct sandbox_cfg *cfg) {
+static void child_setup(const struct sandbox_config *cfg) {
     //Runs inside the child right after fork(). Calls the helpers below in order.
 }
 
-static void setup_namespaces(const struct sandbox_cfg *cfg) {
+static void setup_namespaces(const struct sandbox_config *cfg) {
     //unshare() PID, mount, user, net namespaces as requested.
 }
 
