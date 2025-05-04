@@ -1,10 +1,12 @@
 //
 // Created by alex on 16.04.25.
 //
+#include <stdio.h>
+
 #include  "../include/config.h"
-struct sandbox_config setup_config() {
+struct sandbox_config setup_config(void) {
     struct sandbox_config cfg = {
-        .rootdir = "/sandbox-root",
+        .rootdir = "/home/alex/CLionProjects/SandBox/sandbox-root",
         .uid = 65534,
         .gid = 65534,
         .use_namespaces = 1,

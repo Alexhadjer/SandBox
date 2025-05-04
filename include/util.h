@@ -1,5 +1,7 @@
 #ifndef UTIL_H
 #define UTIL_H
-struct sandbox_config setup_config();
+
+#include "config.h"
+ sandbox_config setup_config(void);
  #endif
 

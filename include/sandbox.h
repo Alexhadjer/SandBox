@@ -1,14 +1,15 @@
 //
 // Created by alex on 16.04.25.
 //
-
+#pragma once
+#include "config.h"
 #ifndef SANDBOX_H
 #define SANDBOX_H
-pid_t sandbox_create(const struct sandbox_config *cfg);
-static void child_setup(const struct sandbox_config *cfg);
+pid_t sandbox_create( struct sandbox_config *cfg);
+ void child_setup( struct sandbox_config *cfg);
 
-static void setup_namespaces(const struct sandbox_config *cfg) ;
+ void setup_namespaces( struct sandbox_config *cfg) ;
 
 
-static void enter_chroot(const char *new_root);
+ void enter_chroot( struct sandbox_config *cfg);
 #endif //SANDBOX_H

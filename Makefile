@@ -1,3 +1,4 @@
 FireJail:
-		gcc -g ./src/main.c 	-o ./bin/Firejail.o
-		chmod +x ./bin/Firejail.o
+		gcc -Iinclude src/main.c src/util.c src/sandbox.c src/filesystem.c	-o ./bin/Firejail
+		chmod +x ./bin/Firejail
+		sudo ./bin/Firejail /bin/bash
