@@ -50,6 +50,11 @@ int main(int argc, char *argv[]) {
         fflush(stdout);       printf("lol");
 
         enter_chroot(&config);
+        if (config.enable_rlimits) {
+            security_apply_rlimits(&config);
+        }
+        security_drop_caps(&config); 
+        security_apply_seccomp(&config);
         printf("After chroot, checking if shell exists...\n");
         struct stat shell_stat;
         if (stat("/bin/bash", &shell_stat) == -1) {
