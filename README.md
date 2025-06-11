@@ -28,7 +28,7 @@ SandBox/
 ## Build Instructions
 
 ### 1. Install dependencies (Ubuntu/Debian)
-```bash
+bash
 sudo apt update
 sudo apt install build-essential libseccomp-dev
  
