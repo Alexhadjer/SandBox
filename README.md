@@ -1,5 +1,4 @@
-# SandBox
-# 🧪 SandBox – A Minimal Linux Process in C
+# Mini Sandbox - Process Isolation & Security 
 
 **SandBox** is a lightweight C-based sandboxing tool developed as part of the **Operating Systems FS25** course. The goal of this project is to understand and apply core OS concepts like process isolation, system call filtering, and resource restrictions—without relying on external container technologies like Docker or Firejail.
 
