@@ -16,9 +16,7 @@
 ---
 
 ## Authors
-Alex Hadjer 
-Jennifer Jäger
-develpoted as part of the Operating Systems FS25 course.
+Alex Hadjer; Jennifer Jäger __ develpoted as part of the Operating Systems FS25 course.
 
 
 --
