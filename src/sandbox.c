@@ -120,18 +120,23 @@ void enter_chroot(struct sandbox_config *config)
         log_msg("ERROR: mount /dev/pts");
         return -1;
               }
+    // Create /dev/ptmx — the pseudoterminal multiplexer (used for spawning terminals)
     mknod("/dev/ptmx", 0666, makedev(5,2));
     symlink("pts/ptmx", "/dev/ptmx");
+    // Create /dev/tty — represents the controlling terminal for the current process
     mknod("/dev/tty",  0666, makedev(5,0));
     log_msg("Mounted /dev/ptmx");
-    // 5) proc and sysfs
+    
+    // Setup of /proc + /sys
     mkdir("/proc", 0555);
     log_msg("mkdir /proc");
     umount2("/proc", MNT_DETACH); log_msg("unmount /proc");
+    // Mount procfs — needed to access process/system info
     if (mount("proc", "/proc", "proc", 0, NULL) < 0)    { log_msg("ERROR: when mounting /proc"); return -1; }
 
     mkdir("/sys", 0555); log_msg("mkdir /sys");
     umount2("/sys", MNT_DETACH); log_msg("unmount /sys");
+    // Mount sysfs — provides hardware and kernel information to userspace
     if (mount("sysfs", "/sys", "sysfs", 0, NULL) < 0)   { log_msg("ERROR: when mounting /sys"); return -1; }
 
     return 0;
