@@ -16,7 +16,7 @@ static int  fd   = -1;
 static int  use_syslog = 0;
 static int detailed = 0;
 
-static void ts(char *buf, size_t len)
+static void timestamp(char *buf, size_t len)
 {
     struct timespec t;
     clock_gettime(CLOCK_REALTIME, &t);
@@ -30,29 +30,29 @@ int log_init(const char *path, int to_syslog,int type)
     detailed = type; //setting it to using the date default.
     use_syslog = to_syslog;
     if (use_syslog) {
-        openlog("sandbox", LOG_PID|LOG_NDELAY, LOG_USER);
+        openlog("sandbox", LOG_PID|LOG_NDELAY, LOG_USER); //makes with sandbox pre-fix no delay P_IP and the user level messages
         return 0;
     }
 
-    fd = open(path, O_WRONLY|O_CREAT|O_APPEND, 0644);
-    return (fd == -1) ? -1 : 0;
+    fd = open(path, O_WRONLY|O_CREAT|O_APPEND, 0644); //write/apend only create if not existend
+    if (fd < 0) {return -1;}
+    else return 0;
 }
 
-void log_msg(const char *fmt, ...)
+void log_msg(const char *format_text, ...)
 {
-    char line[512], tsbuf[32];
+    char line[512], timestamp_buff[32];
     if (detailed)
     {
-        ts(tsbuf, sizeof(tsbuf));
-    }
-    va_list ap;
-    va_start(ap, fmt);
+        timestamp(timestamp_buff, sizeof(timestamp_buff));
+    }//always adding timestamp. There was an plan to add mode with simpl logs
+    va_list argumet;
+    va_start(argumet, format_text);
     int n = snprintf(line, sizeof(line), "[%s pid=%d] ",
-                     tsbuf, (int)getpid());
-    n += vsnprintf(line + n, sizeof(line) - n, fmt, ap);
-    va_end(ap);
-
-    /* ensure newline */
+                     timestamp_buff, (int)getpid());
+    n += vsnprintf(line + n, sizeof(line) - n, format_text, argumet); //ad line
+    va_end(argumet);
+    //Nuline
     if (line[n-1] != '\n' && n < (int)sizeof(line)-1) {
         line[n++] = '\n';
         line[n]   = '\0';
@@ -67,7 +67,7 @@ void log_msg(const char *fmt, ...)
 
 void log_msg_safe(const char *msg, size_t len)
 {
-    /* async-signal-safe: write() only */
+    // write() only
     if (fd != -1) {
         write(fd, msg, len);
         write(fd, "\n", 1);
