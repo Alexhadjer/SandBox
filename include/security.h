@@ -6,4 +6,5 @@
 #define SECURITY_H
 void security_apply_rlimits(const struct sandbox_config *cfg);
 void security_drop_caps(const struct sandbox_config *cfg);
+void security_apply_seccomp(const struct sandbox_config *cfg);
 #endif //SECURITY_H

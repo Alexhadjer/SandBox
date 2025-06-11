@@ -1,6 +1,8 @@
 //
 // Created by alex on 16.04.25.
 //
+
+#define GNU_SOURCE
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,98 +12,128 @@
 #include <sys/types.h>
 #include <errno.h>
 #include "../include/sandbox.h"
+#include "../include/security.h"
 #include "../include/util.h"
 #include "../include/config.h"
-#define GNU_SOURCE
 #include  <sys/stat.h>
 #include <sys/mount.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include "../include/banner.h"
+#include "../include/log.h"
+#include "../include/security.h"
+#include "../include/sandbox.h"
+#include <sys/sysmacros.h>
+#include <pty.h>
+#include <seccomp.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/wait.h>
+#include "../include/sigsys.h"
+
 extern char **environ;
+int soft_env = 0;
 
 int main(int argc, char *argv[]) {
-    // check if executed with argument (file-path)
+    int argi = 1;
 
-    if(argc<2){
-        printf("Usage: %s <exec-program>\n",argv[0]);
-        return 0;
+    if (argc > 1 && strcmp(argv[argi], "--softenv") == 0) {
+        soft_env = 1;
+        argi++;
+    }
+    if (argi >= argc) {
+        fprintf(stderr, "Usage: %s [--softenv] <exec> [args...]\n", argv[0]);
+        return EXIT_FAILURE;
     }
 
-    const char *target_program = argv[1];
+    const char *target = argv[argi];
+    char **targv = &argv[argi];
 
-    // Optional: Build an argument list for execve().
-    // Right now, we simply pass the remainder of argv to the target.
-    // (i.e., if user typed: ./sandbox /bin/ls -l, we forward "/bin/ls" and "-l")
-    char **target_args = &argv[1];
-    sandbox_config config= setup_config();
-    // Step 2: Fork a Child Process
+    // 1) Initialize logging (parent+child)
+    if (log_init("./sandbox.log", 0,1) != 0) {
+        perror("log_init");
+        return EXIT_FAILURE;
+    }
+    log_msg("Starting sandbox [argc=%d]", argc);
+    sandbox_banner();
+    log_msg("INFO: Sandbox started");
+
+    // 2) Load config
+    sandbox_config cfg = setup_config();
+    if (soft_env) {
+        cfg.enable_seccomp = 0;
+        cfg.enable_rlimits = 0;
+        cfg.use_namespaces = 0;
+    }
+    log_msg("Config: rootdir=%s seccomp=%d rlimits=%d namespaces=%d",
+            cfg.rootdir, cfg.enable_seccomp, cfg.enable_rlimits, cfg.use_namespaces);
+
+    // 3) Fork
     pid_t pid = fork();
     if (pid < 0) {
-        perror("fork() failed");
+        log_msg("ERROR: fork failed: %s", strerror(errno));
+        log_close();
         return EXIT_FAILURE;
     }
     else if (pid == 0) {
-        // Child Process
+        // Child
+        log_msg("Child[%d]: start, target=%s", getpid(), target);
 
-        // For now: Just exec the requested program (no chroot yet).
-        //child_setup(&config);
-        char *target_argv[] = { "/bin/bash", NULL };
-        printf("hi");
-        printf("hello world\n");
-        printf("%s\n", config.rootdir);
-        fflush(stdout);       printf("lol");
+        // a) chroot/jail setup
+        enter_chroot(&cfg) ;
 
-        enter_chroot(&config);
-        if (config.enable_rlimits) {
-            security_apply_rlimits(&config);
-        }
-        security_drop_caps(&config); 
-        security_apply_seccomp(&config);
-        printf("After chroot, checking if shell exists...\n");
-        struct stat shell_stat;
-        if (stat("/bin/bash", &shell_stat) == -1) {
-            perror("bash not found in chroot");
-        } else {
-            printf("/bin/bash exists in chroot\n");
-        }
 
-        if (stat("/bin/sh", &shell_stat) == -1) {
-            perror("sh not found in chroot");
-        } else {
-            printf("/bin/sh exists in chroot\n");
-        }
-        struct stat exec_stat;
-        if (stat(target_program, &exec_stat) == -1) {
-            perror("stat() on target program failed");
-            printf("Target program %s does not exist or is not accessible\n", target_program);
-            exit(EXIT_FAILURE);
-        }
+        log_msg("Child[%d]: chroot OK", getpid());
 
-        printf("File exists. Checking if executable...\n");
-        if (!(exec_stat.st_mode & S_IXUSR)) {
-            printf("Target program %s is not executable\n", target_program);
-            exit(EXIT_FAILURE);
-        }
-        printf("%s\n", target_program);
+        // b) drop privileges
+        drop_privileges(&cfg);
+        log_msg("Child[%d]: privileges dropped to uid=%d", getpid(), cfg.uid);
 
-        char *minimal_env[] = { "PATH=/bin:/usr/bin", NULL };
-        if (execve(target_program, target_args, minimal_env) == -1) {
-            perror("execve() failed");
-            exit(EXIT_FAILURE);
+        // c) prepare environment
+        new_environ(soft_env);
+        log_msg("Child[%d]: env sanitized (soft_env=%d)", getpid(), soft_env);
+
+        // d) install SIGSYS handler
+        install_sigsys_handler();
+        log_msg("Child[%d]: SIGSYS handler installed", getpid());
+
+        // e) install seccomp filter
+        if (cfg.enable_seccomp) {
+            log_msg("Child[%d]: installing seccomp filter", getpid());
+            security_apply_seccomp(&cfg);
+            log_msg("Child[%d]: seccomp filter installed", getpid());
         }
+        char *safe_env[] = { "PATH=/usr/bin:/bin", "TERM=xterm-256color", NULL };
+
+
+        // your argv too:
+        char* const argv[] = { "/bin/sh", "bin/test.sh", NULL };
+        // f) execute target
+        log_msg("Child[%d]: execve %s", getpid(), target);
+        execve(argv[0], argv, (char* const*)safe_env);
+        perror("execve");
+        // if execve returns, it failed
+        log_msg("ERROR: execve failed: %s", strerror(errno));
+        _exit(EXIT_FAILURE);
     }
     else {
-        // Parent Process: Wait for the child to finish
+        // Parent
         int status;
         if (waitpid(pid, &status, 0) < 0) {
-            perror("waitpid() failed");
+            log_msg("ERROR: waitpid failed: %s", strerror(errno));
+            log_close();
             return EXIT_FAILURE;
         }
-
         if (WIFEXITED(status)) {
-            printf("Child exited with code %d\n", WEXITSTATUS(status));
+            log_msg("Child[%d] exited with code %d", pid, WEXITSTATUS(status));
         } else if (WIFSIGNALED(status)) {
-            printf("Child killed by signal %d\n", WTERMSIG(status));
+            log_msg("Child[%d] killed by signal %d", pid, WTERMSIG(status));
         }
     }
 
-    return 0;
+    log_msg("Sandbox run complete");
+    log_close();
+    return EXIT_SUCCESS;
 }
