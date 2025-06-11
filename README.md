@@ -18,8 +18,8 @@
 ## Authors
 Alex Hadjer; Jennifer Jäger __ develpoted as part of the Operating Systems FS25 course.
 
+---
 
---
 ## License
 
 This project is intended for educational purposes and does not guarantee full process isolation or security.
