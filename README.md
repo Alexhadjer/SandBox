@@ -16,10 +16,11 @@
 ---
 
 ## Authors
+Alex Hadjer 
+Jennifer Jäger
+develpoted as part of the Operating Systems FS25 course.
 
-Alex Hadjer
-Jennifer Jaeger
-Developed as part of the Operating Systems FS25 course.
+
 --
 ## License
 
